@@ -1,0 +1,77 @@
+[KIM FILE HEADER]
+FileFormatVersion: 2.0
+FileSize: 12345
+NumTables: 2
+LinkKeysSectionOffset: 0x1234     <-- New field indicating the offset of the link keys section
+
+[TABLE 0 HEADER]
+TableName: "customers"
+NumColumns: 4
+LinkColumnIndex: -1     <-- New field indicating the index of the link column (or -1 if none)
+
+[COLUMN 0 HEADER]
+ColumnName: "customer_id"
+DataType: int
+DataSize: 4
+IsIndexed: true
+IsLinkKey: true    <-- New flag indicating whether the column is a link key
+
+[COLUMN 1 HEADER]
+ColumnName: "name"
+DataType: string
+DataSize: 64
+IsIndexed: false
+IsLinkKey: false
+
+[COLUMN 2 HEADER]
+ColumnName: "email"
+DataType: string
+DataSize: 128
+IsIndexed: true
+IsLinkKey: false
+
+[COLUMN 3 HEADER]
+ColumnName: "phone"
+DataType: string
+DataSize: 32
+IsIndexed: false
+IsLinkKey: false
+
+[TABLE 1 HEADER]
+TableName: "orders"
+NumColumns: 4
+LinkColumnIndex: 1     <-- New field indicating the index of the link column
+
+[COLUMN 0 HEADER]
+ColumnName: "order_id"
+DataType: int
+DataSize: 4
+IsIndexed: true
+IsLinkKey: false
+
+[COLUMN 1 HEADER]
+ColumnName: "customer_id"
+DataType: int
+DataSize: 4
+IsIndexed: true
+IsLinkKey: true
+
+[COLUMN 2 HEADER]
+ColumnName: "product_id"
+DataType: int
+DataSize: 4
+IsIndexed: false
+IsLinkKey: false
+
+[COLUMN 3 HEADER]
+ColumnName: "quantity"
+DataType: int
+DataSize: 4
+IsIndexed: false
+IsLinkKey: false
+
+[LINK KEYS SECTION]    <-- New section containing link key information
+NumLinkKeys: 1
+LinkKey0:
+    TableIndex: 1
+    ColumnIndex: 1
