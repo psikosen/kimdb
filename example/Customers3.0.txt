@@ -1,0 +1,85 @@
+[KIM FILE HEADER]
+FileFormatVersion: 3.0
+FileSize: 12345
+NumTables: 2
+LinkKeysSectionOffset: 0x1234
+
+[TABLE 0 HEADER]
+TableName: "customers"
+NumColumns: 6
+LinkColumnIndex: -1
+
+[COLUMN 0 HEADER]
+ColumnName: "customer_id"
+DataType: int
+DataSize: 4
+IsLinkKey: true
+
+[COLUMN 1 HEADER]
+ColumnName: "name"
+DataType: string
+DataSize: 64
+
+[COLUMN 2 HEADER]
+ColumnName: "email"
+DataType: string
+DataSize: 128
+IsIndexed: true
+
+[COLUMN 3 HEADER]
+ColumnName: "phone"
+DataType: string
+DataSize: 32
+
+[COLUMN 4 HEADER]
+ColumnName: "unicol"
+DataType: int
+DataSize: 4
+IsIndexed: true
+IsUnique: true
+
+[COLUMN 5 HEADER]
+ColumnName: "unikey"
+DataType: int
+DataSize: 4
+IsPrimaryKey: true
+
+[TABLE 1 HEADER]
+TableName: "orders"
+NumColumns: 5
+LinkColumnIndex: 1
+
+[COLUMN 0 HEADER]
+ColumnName: "order_id"
+DataType: int
+DataSize: 4
+IsIndexed: true
+
+[COLUMN 1 HEADER]
+ColumnName: "customer_id"
+DataType: int
+DataSize: 4
+IsLinkKey: true
+
+[COLUMN 2 HEADER]
+ColumnName: "product_id"
+DataType: int
+DataSize: 4
+
+[COLUMN 3 HEADER]
+ColumnName: "quantity"
+DataType: int
+DataSize: 4
+
+[COLUMN 4 HEADER]
+ColumnName: "unicol"
+DataType: int
+DataSize: 4
+IsIndexed: true
+IsUnique: true
+
+[LINK KEYS SECTION]
+NumLinkKeys: 1
+LinkKey0:
+    TableIndex: 1
+    ColumnIndex: 1
