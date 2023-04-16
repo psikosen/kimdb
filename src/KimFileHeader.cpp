@@ -4,21 +4,12 @@
 #include <cstring>
 #include <regex>
 
-struct KimFileHeaderV2 {
+struct KimFileHeaderV3 {
     uint8_t FileFormatVersion;
     uint32_t FileSize;
     uint16_t NumTables;
     uint32_t LinkKeysSectionOffset;
-    char Magic[8];          // File identifier
-    uint32_t Version;       // File version number
-    char TableName[256];    // Name of the table in the file
-    uint32_t NumColumns;    // Number of columns in the table
-    uint32_t NumRows;       // Number of rows in the table
-    uint32_t PrimaryKeyCol; // Index of the primary key column
-    uint32_t LinkKeyCol;    // Index of the link key column
-    uint32_t JoinToken;     // Token used for inner joins
 };
-
 
 struct ColumnHeader {
     char ColumnName[64];
@@ -26,18 +17,18 @@ struct ColumnHeader {
     uint16_t DataSize;
     bool IsIndexed;
     bool IsLinkKey;
-    bool IsIdentifier;
-    bool IsPrimaryKey; // new field for whether column is part of primary key
+    bool IsUnique;
+    bool IsPrimaryKey;
 };
 
 struct TableHeader {
     char TableName[64];
     uint16_t NumColumns;
-    uint16_t LinkColumnIndex;
-    uint16_t IdentifierColumnIndex;
-    uint16_t PrimaryKeyColumnIndex; // new field for primary key column
+    int16_t LinkColumnIndex;
     bool HasUniqueRows;
 };
+
+
 
 class KimTable {
 public:
@@ -46,63 +37,58 @@ public:
     std::vector<std::vector<std::string>> rows; // Replace std::string with the appropriate data type
 
     void loadFromFile(const std::string& fileName) {
-        std::ifstream ifs(fileName, std::ios::binary);
-        if (!ifs) {
-            std::cerr << "Failed to open file: " << fileName << std::endl;
-            return;
-        }
-
-        // Read file header
-        ifs.read(reinterpret_cast<char*>(&header), sizeof(KimFileHeaderV2));
-
-        // Read table headers and column headers
-        for (int i = 0; i < header.NumTables; ++i) {
-            TableHeader tableHeader;
-            ifs.read(reinterpret_cast<char*>(&tableHeader), sizeof(TableHeader));
-
-            for (int j = 0; j < tableHeader.NumColumns; ++j) {
-                ColumnHeader columnHeader;
-                ifs.read(reinterpret_cast<char*>(&columnHeader), sizeof(ColumnHeader));
-                columnHeaders.push_back(columnHeader);
-            }
-        }
-
-        // Read link keys section (if present)
-        if (header.LinkKeysSectionOffset > 0) {
-            ifs.seekg(header.LinkKeysSectionOffset);
-            uint32_t numLinkKeys;
-            ifs.read(reinterpret_cast<char*>(&numLinkKeys), sizeof(uint32_t));
-
-            for (uint32_t i = 0; i < numLinkKeys; ++i) {
-                uint32_t tableIndex, columnIndex;
-                ifs.read(reinterpret_cast<char*>(&tableIndex), sizeof(uint32_t));
-                ifs.read(reinterpret_cast<char*>(&columnIndex), sizeof(uint32_t));
-                // Process link keys as needed for your specific application
-            }
-        }
-
-        // Read data (assuming it's stored as plain text)
-        // You may need to adjust this section based on the actual data storage format
-        std::string line;
-        while (std::getline(ifs, line)) {
-            std::istringstream iss(line);
-            std::vector<std::string> row;
-            std::string cell;
-
-            for (int i = 0; i < header.NumColumns; ++i) {
-                if (std::getline(iss, cell, ',')) {
-                    row.push_back(cell);
-                }
-            }
-
-            if (!row.empty()) {
-                rows.push_back(row);
-            }
-        }
-
-        ifs.close();
+    std::ifstream ifs(fileName, std::ios::binary);
+    if (!ifs) {
+        std::cerr << "Failed to open file: " << fileName << std::endl;
+        return;
     }
-    
+
+    // Read file header
+    KimFileHeaderV3 fileHeader;
+    ifs.read(reinterpret_cast<char*>(&fileHeader), sizeof(KimFileHeaderV3));
+
+    // Read table headers and column headers
+    for (int i = 0; i < fileHeader.NumTables; ++i) {
+        TableHeader tableHeader;
+        ifs.read(reinterpret_cast<char*>(&tableHeader), sizeof(TableHeader));
+
+        for (int j = 0; j < tableHeader.NumColumns; ++j) {
+            ColumnHeader columnHeader;
+            ifs.read(reinterpret_cast<char*>(&columnHeader), sizeof(ColumnHeader));
+            columnHeaders.push_back(columnHeader);
+        }
+    }
+
+    // Read link keys section (if present)
+    if (fileHeader.LinkKeysSectionOffset > 0) {
+        ifs.seekg(fileHeader.LinkKeysSectionOffset);
+        uint32_t numLinkKeys;
+        ifs.read(reinterpret_cast<char*>(&numLinkKeys), sizeof(uint32_t));
+
+        for (uint32_t i = 0; i < numLinkKeys; ++i) {
+            uint32_t tableIndex, columnIndex;
+            ifs.read(reinterpret_cast<char*>(&tableIndex), sizeof(uint32_t));
+            ifs.read(reinterpret_cast<char*>(&columnIndex), sizeof(uint32_t));
+            // Process link keys as needed for your specific application
+        }
+    }
+
+    // Read data (assuming it's stored as binary format)
+    // You may need to adjust this section based on the actual data storage format
+    for (int i = 0; i < fileHeader.NumTables; ++i) {
+        TableHeader tableHeader;
+        ifs.read(reinterpret_cast<char*>(&tableHeader), sizeof(TableHeader));
+
+        for (int j = 0; j < tableHeader.NumRows; ++j) {
+            std::vector<char> row(tableHeader.NumColumns * sizeof(uint64_t));
+            ifs.read(reinterpret_cast<char*>(row.data()), row.size());
+            rows.push_back(row);
+        }
+    }
+
+    ifs.close();
+}
+
 
     std::string select(const KimTable& table, size_t rowIndex, size_t columnIndex) {
       if (rowIndex < table.rows.size() && columnIndex < table.columnHeaders.size()) {
