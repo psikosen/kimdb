@@ -584,61 +584,61 @@ void InsertWithSQL(const std::string& fileName, const std::string& sql) {
         } else {
             // Use default value for column
             std::unique_ptr<char[]> data(new char[col
-char* colData = new char[colHeader.DataSize];
-memcpy(colData, defaultValue, colHeader.DataSize);
-row.push_back(std::make_pair(colHeader.ColumnName, colData));
-} else {
-// Prompt user for column value
-std::cout << "Enter value for column " << colHeader.ColumnName << ": ";
-std::string value;
-std::getline(std::cin, value);
-if (value.empty()) {
-std::cerr << "Invalid value for column " << colHeader.ColumnName << std::endl;
-return;
-}
-// Check data type and convert value to binary format
-switch (colHeader.DataType) {
-case DataType::INT32:
-try {
-int32_t intValue = std::stoi(value);
-memcpy(colData, &intValue, sizeof(int32_t));
-} catch (std::exception& e) {
-std::cerr << "Invalid value for column " << colHeader.ColumnName << std::endl;
-return;
-}
-break;
-case DataType::FLOAT:
-try {
-float floatValue = std::stof(value);
-memcpy(colData, &floatValue, sizeof(float));
-} catch (std::exception& e) {
-std::cerr << "Invalid value for column " << colHeader.ColumnName << std::endl;
-return;
-}
-break;
-case DataType::CHAR:
-if (value.length() > colHeader.DataSize) {
-std::cerr << "Value for column " << colHeader.ColumnName << " is too long." << std::endl;
-return;
-}
-memset(colData, 0, colHeader.DataSize);
-memcpy(colData, value.c_str(), value.length());
-break;
-default:
-std::cerr << "Unsupported data type." << std::endl;
-return;
-}
-row.push_back(std::make_pair(colHeader.ColumnName, colData));
-}
-}
-// Write row to file
-std::ofstream ofs(fileName, std::ios::binary | std::ios::app);
-for (int i = 0; i < row.size(); i++) {
-    ofs.write(row[i].second, colHeaders[i].DataSize);
-}
+            char* colData = new char[colHeader.DataSize];
+            memcpy(colData, defaultValue, colHeader.DataSize);
+            row.push_back(std::make_pair(colHeader.ColumnName, colData));
+        } else {
+            // Prompt user for column value
+            std::cout << "Enter value for column " << colHeader.ColumnName << ": ";
+            std::string value;
+            std::getline(std::cin, value);
+          if (value.empty()) {
+            std::cerr << "Invalid value for column " << colHeader.ColumnName << std::endl;
+            return;
+        }
+            // Check data type and convert value to binary format
+         switch (colHeader.DataType) {
+          case DataType::INT32:
+            try {
+              int32_t intValue = std::stoi(value);
+              memcpy(colData, &intValue, sizeof(int32_t));
+            } catch (std::exception& e) {
+             std::cerr << "Invalid value for column " << colHeader.ColumnName << std::endl;
+              return;
+            }
+             break;
+          case DataType::FLOAT:
+            try {
+             float floatValue = std::stof(value);
+              memcpy(colData, &floatValue, sizeof(float));
+            } catch (std::exception& e) {
+              std::cerr << "Invalid value for column " << colHeader.ColumnName << std::endl;
+             return;
+            }
+            break;
+          case DataType::CHAR:
+                if (value.length() > colHeader.DataSize) {
+                std::cerr << "Value for column " << colHeader.ColumnName << " is too long." << std::endl;
+                return;
+                }
+                memset(colData, 0, colHeader.DataSize);
+                memcpy(colData, value.c_str(), value.length());
+                break;
+                default:
+                std::cerr << "Unsupported data type." << std::endl;
+                return;
+             }
+           row.push_back(std::make_pair(colHeader.ColumnName, colData));
+            }
+           }
+            // Write row to file
+            std::ofstream ofs(fileName, std::ios::binary | std::ios::app);
+            for (int i = 0; i < row.size(); i++) {
+                ofs.write(row[i].second, colHeaders[i].DataSize);
+            }
 
-ofs.close();
-std::cout << "Row added." << std::endl;
+            ofs.close();
+            std::cout << "Row added." << std::endl;
 
 }
  
@@ -777,6 +777,111 @@ if (isWhereColIndexed) {
             }
 }
  
+
+void UpdateRowWithSql(const std::string& fileName, const std::string& tableName, const std::string& setClause, const std::string& whereClause) {
+    // Read table header to get column information
+    TableHeader header;
+    std::ifstream ifs(fileName, std::ios::binary);
+    ifs.read(reinterpret_cast<char*>(&header), sizeof(TableHeader));
+    while (strcmp(header.TableName, tableName.c_str()) != 0) {
+        ifs.seekg(sizeof(TableHeader) + header.NumColumns * sizeof(ColumnHeader), std::ios::cur);
+        ifs.read(reinterpret_cast<char*>(&header), sizeof(TableHeader));
+        if (ifs.eof()) {
+            std::cerr << "Table not found." << std::endl;
+            return;
+        }
+    }
+
+    // Parse set clause
+    std::vector<std::pair<std::string, std::string>> setValues;
+    std::istringstream ssSet(setClause);
+    std::string setToken;
+    while (std::getline(ssSet, setToken, ',')) {
+        std::istringstream ss(setToken);
+        std::string column, value;
+        std::getline(ss, column, '=');
+        std::getline(ss, value, '=');
+        setValues.push_back({column, value});
+    }
+
+    // Parse where clause
+    std::string whereColumnName;
+    std::string whereColumnValue;
+    std::istringstream ssWhere(whereClause);
+    std::string whereToken;
+    std::getline(ssWhere, whereToken, '=');
+    whereColumnName = whereToken;
+    std::getline(ssWhere, whereToken, '=');
+    whereColumnValue = whereToken;
+
+    // Check if where column is indexed
+    bool isWhereColIndexed = false;
+    std::vector<uint32_t> index;
+    if (header.NumRows >= MIN_INDEXED_ROWS) {
+        ColumnHeader whereColHeader;
+        ifs.seekg(sizeof(TableHeader) + header.LinkColumnIndex * sizeof(ColumnHeader), std::ios::beg);
+        ifs.read(reinterpret_cast<char*>(&whereColHeader), sizeof(ColumnHeader));
+        isWhereColIndexed = whereColHeader.IsIndexed;
+        if (isWhereColIndexed) {
+            index.resize(header.NumRows);
+            ifs.read(reinterpret_cast<char*>(index.data()), header.NumRows * sizeof(uint32_t));
+        }
+    }
+
+    // Update rows
+    std::ofstream ofs(fileName, std::ios::in | std::ios::out | std::ios::binary);
+    ofs.seekp(sizeof(TableHeader) + header.NumColumns * sizeof(ColumnHeader));
+    int numUpdatedRows = 0;
+    for (int i = 0; i < header.NumRows; i++) {
+        // Read row
+        std::vector<std::pair<const char*, std::unique_ptr<char[]>>> row;
+        for (int j = 0; j < header.NumColumns; j++) {
+            ColumnHeader colHeader;
+            ifs.read(reinterpret_cast<char*>(&colHeader), sizeof(ColumnHeader));
+            std::unique_ptr<char[]> data(new char[colHeader.DataSize]);
+            ifs.read(data.get(), colHeader.DataSize);
+            row.push_back({colHeader.ColumnName, std::move(data)});
+        }
+
+        // Check where clause
+        bool updateRow = false;
+     if (isWhereColIndexed) {
+            uint32_t rowIndex = index[i];
+            ifs.seekg(sizeof(TableHeader) + whereColIndex * sizeof(ColumnHeader) + rowIndex * sizeof(uint32_t), std::ios::beg);
+            uint32_t valueIndex;
+            ifs.read(reinterpret_cast<char*>(&valueIndex), sizeof(uint32_t));
+            const char* value = row[whereColIndex].second.get();
+            deleteRow = (strcmp(value + valueIndex, whereColumnValue.c_str()) == 0);
+        } else {
+            const char* value = row[whereColIndex].second.get();
+            deleteRow = (strcmp(value, whereColumnValue.c_str()) == 0);
+        }
+
+        // Write row if not to be deleted
+        if (!deleteRow) {
+            ofs.write(reinterpret_cast<const char*>(rowSize), sizeof(uint32_t));
+            for (int j = 0; j < header.NumColumns; j++) {
+                const char* data = row[j].second.get();
+                uint16_t dataSize = (j == whereColIndex) ? row[j].first->DataSize : header.Columns[j].DataSize;
+                ofs.write(reinterpret_cast<const char*>(&dataSize), sizeof(uint16_t));
+                ofs.write(data, dataSize);
+            }
+        } else {
+            numDeletedRows++;
+        }
+    }
+
+    // Update row count in table header
+    if (numDeletedRows > 0) {
+        header.NumRows -= numDeletedRows;
+        ofs.seekp(sizeof(KimFileHeader));
+        ofs.write(reinterpret_cast<const char*>(&header.NumRows), sizeof(uint32_t));
+    }
+
+    ofs.close();
+}
+
+  
 void UpdateRow(std::ofstream& ofs, const char* tableName, const std::vector<std::pair<const char*, const void*>>& row, const std::vector<std::pair<const char*, const void*>>& updateValues) {
     ofs.write("UPDATE ", 7);
     ofs.write(tableName, strlen(tableName));
