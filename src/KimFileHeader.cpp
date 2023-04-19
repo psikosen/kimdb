@@ -24,6 +24,7 @@ struct ColumnHeader {
 struct TableHeader {
     char TableName[64];
     uint16_t NumColumns;
+    uint16_t NumRows;
     int16_t LinkColumnIndex;
     bool HasUniqueRows;
 };
@@ -32,7 +33,7 @@ struct TableHeader {
 
 class KimTable {
 public:
-    KimFileHeaderV2 header;
+    TableHeader header;
     std::vector<ColumnHeader> columnHeaders;
     std::vector<std::vector<std::string>> rows; // Replace std::string with the appropriate data type
 
@@ -80,7 +81,7 @@ public:
         ifs.read(reinterpret_cast<char*>(&tableHeader), sizeof(TableHeader));
 
         for (int j = 0; j < tableHeader.NumRows; ++j) {
-            std::vector<char> row(tableHeader.NumColumns * sizeof(uint64_t));
+            std::vector<std::basic_string<char>> row(tableHeader.NumColumns * sizeof(uint64_t));
             ifs.read(reinterpret_cast<char*>(row.data()), row.size());
             rows.push_back(row);
         }
@@ -212,8 +213,8 @@ public:
 
 };
  
-void WriteHeader(std::ofstream& ofs, const KimFileHeaderV2& header) {
-    ofs.write(reinterpret_cast<const char*>(&header), sizeof(KimFileHeaderV2));
+void WriteHeader(std::ofstream& ofs, const KimFileHeaderV3& header) {
+    ofs.write(reinterpret_cast<const char*>(&header), sizeof(KimFileHeaderV3));
 }
 
 void WriteColumnHeader(std::ofstream& ofs, const ColumnHeader& header) {
@@ -222,13 +223,11 @@ void WriteColumnHeader(std::ofstream& ofs, const ColumnHeader& header) {
     ofs.write(reinterpret_cast<const char*>(&header.DataSize), sizeof(header.DataSize));
     ofs.write(reinterpret_cast<const char*>(&header.IsIndexed), sizeof(header.IsIndexed));
     ofs.write(reinterpret_cast<const char*>(&header.IsLinkKey), sizeof(header.IsLinkKey));
-    ofs.write(reinterpret_cast<const char*>(&header.IsIdentifier), sizeof(header.IsIdentifier));
 }
 
 void WriteTableHeader(std::ofstream& ofs, const TableHeader& header) {
     ofs.write(header.TableName, sizeof(header.TableName));
     ofs.write(reinterpret_cast<const char*>(&header.NumColumns), sizeof(header.NumColumns));
     ofs.write(reinterpret_cast<const char*>(&header.LinkColumnIndex), sizeof(header.LinkColumnIndex));
-    ofs.write(reinterpret_cast<const char*>(&header.IdentifierColumnIndex), sizeof(header.IdentifierColumnIndex));
     ofs.write(reinterpret_cast<const char*>(&header.HasUniqueRows), sizeof(header.HasUniqueRows));
 }
