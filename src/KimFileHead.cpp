@@ -2,7 +2,6 @@
 //
 
 #include "KimFileHead.h"
-
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -17,13 +16,15 @@
     }
 
     // Read file header
-    KimFileHeaderV3 fileHeader;
+    KimFileHeaderV3 fileHeader{};
     ifs.read(reinterpret_cast<char*>(&fileHeader), sizeof(KimFileHeaderV3));
 
     // Read table headers and column headers
     for (int i = 0; i < fileHeader.NumTables; ++i) {
         TableHeader tableHeader;
         ifs.read(reinterpret_cast<char*>(&tableHeader), sizeof(TableHeader));
+        // Set the table name in the header object
+        std::memcpy(header.TableName, tableHeader.TableName, sizeof(tableHeader.TableName));
 
         for (int j = 0; j < tableHeader.NumColumns; ++j) {
             ColumnHeader columnHeader;
@@ -62,6 +63,9 @@
     ifs.close();
 }
 void KimTable::createTable(const std::vector<std::string>& columnNames) {
+    // Set the number of columns for the table header
+    header.NumColumns = columnNames.size();
+
     // Add the column names to the columnHeader vector
     for (const auto& columnName : columnNames) {
         ColumnHeader columnHeader{};
@@ -82,13 +86,25 @@ void KimTable::addRow(const std::vector<std::string>& rowData) {
     // Add the row data to the rows vector
     rows.push_back(rowData);
 }
-
 void KimTable::writeToFile(const std::string& fileName) {
     std::ofstream ofs(fileName, std::ios::binary);
     if (!ofs) {
         std::cerr << "Failed to open file: " << fileName << std::endl;
         return;
     }
+    std::cout << "Writing to file: " << fileName << std::endl;
+
+    // Write the KimFileHeaderV3
+    KimFileHeaderV3 fileHeader;
+    fileHeader.NumTables = 1; // Assuming only one table for now
+    ofs.write(reinterpret_cast<const char*>(&fileHeader), sizeof(KimFileHeaderV3));
+
+    // Write the TableHeader
+    TableHeader tableHeader;
+    std::memset(tableHeader.TableName, 0, sizeof(tableHeader.TableName));
+    std::strncpy(tableHeader.TableName, header.TableName, sizeof(tableHeader.TableName) - 1);
+    tableHeader.NumColumns = columnHeaders.size();
+    ofs.write(reinterpret_cast<const char*>(&tableHeader), sizeof(TableHeader));
 
     // Write the number of columns
     uint32_t numColumns = columnHeaders.size();
@@ -111,7 +127,16 @@ void KimTable::writeToFile(const std::string& fileName) {
     }
 
     ofs.close();
+    std::cout << "Writing to file: " << fileName << std::endl;
+
+    // Check if the file has been written successfully
+    if (!ofs) {
+        std::cerr << "An error occurred while writing to the file: " << fileName << std::endl;
+    }
+    std::cout << "Writing to file: " << fileName << std::endl;
+
 }
+
 
 void KimTable::setTableName(const std::string &tableName) {
     std::memset(header.TableName, 0, sizeof(header.TableName));

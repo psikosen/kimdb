@@ -46,6 +46,10 @@ struct TableHeader {
 
 class KimTable {
 public:
+    KimTable() {
+        std::memset(&header, 0, sizeof(header));
+    }
+
     TableHeader header;
     std::vector<ColumnHeader> columnHeaders;
     std::vector<std::vector<std::string>> rows; // Replace std::string with the appropriate data type
