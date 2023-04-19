@@ -17,11 +17,11 @@ int main() {
     table.addRow({"value4", "value5", "value6"});
     std::cout << "writing to file" << " ";
     // Write the table to a .kim file
-    table.writeToFile("example.kim");
+    table.writeToFile(R"(C:\Users\ray\Documents\Github\example.kim)");
     std::cout << "loading file" << " ";
     // Load the table from the .kim file
     KimTable loadedTable;
-    loadedTable.loadFromFile("example.kim");
+    loadedTable.loadFromFile(R"(C:\Users\ray\Documents\Github\example.kim)");
     std::cout << "reading file" << " ";
     // Select a row with an SQL query
  //   std::vector<std::string> row = loadedTable.selectRowWithSQL(loadedTable, "SELECT * FROM example WHERE column1 = 'value1'");
